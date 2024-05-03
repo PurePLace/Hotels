@@ -1,0 +1,67 @@
+import requests
+from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+# Список городов Евросоюза
+cities = ['Берлин', 'Париж', 'Рим', 'Мадрид', 'Лиссабон']
+
+# Инициализация драйвера Selenium
+driver = webdriver.Chrome()
+
+# Цикл по городам
+for city in cities:
+    # URL страницы поиска отелей в городе
+    url = f'https://www.booking.com/searchresults.html?city={city}&ss=Европа'
+
+    # Получение HTML-страницы
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    # Получение названий отелей
+    hotel_names = [hotel.get_text() for hotel in soup.select('.sr_header_title')]
+
+    # Цикл по названиям отелей
+    for hotel_name in hotel_names:
+        # Получение URL-адреса отеля
+        hotel_url = soup.select_one(f'a[title="{hotel_name}"]')['href']
+
+        # Переход на веб-сайт отеля с помощью Selenium
+        driver.get(hotel_url)
+
+        # Ожидание загрузки страницы
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, '.bui-link--size--default')))
+
+        # Получение HTML-страницы отеля
+        hotel_html = driver.page_source
+        hotel_soup = BeautifulSoup(hotel_html, 'html.parser')
+
+        # Получение адреса электронной почты отеля
+        hotel_email = hotel_soup.select_one('.bui-link--size--default')['href']
+
+        # Сохранение данных в файл CSV (разделитель - табуляция)
+        with open('hotels.csv', 'a') as f:
+            f.write(f'{hotel_name}\t{hotel_email}\n')
+
+# Закрытие драйвера Selenium
+driver.quit()
+import dns.resolver
+
+# Список полученных адресов электронной почты
+emails = ['email1@example.com', 'email2@example.com', 'email3@example.com']
+
+# Проверка каждого адреса электронной почты с помощью запроса MX к DNS
+for email in emails:
+    try:
+        # Получение MX-записей для домена электронной почты
+        mx_records = dns.resolver.query(email.split('@')[1], 'MX')
+
+        # Если MX-записи найдены, адрес электронной почты считается действительным
+        if mx_records:
+            print(f'{email} является действительным адресом электронной почты')
+        else:
+            print(f'{email} является недействительным адресом электронной почты')
+    except dns.resolver.NXDOMAIN:
+        print(f'{email} является недействительным адресом электронной почты (несуществующий домен)')
